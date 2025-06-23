@@ -34,6 +34,7 @@ type FxState = {
   platformSettlementCurrency: string
   connectedSettlementCurrency: string
   rates: Record<string, number>
+  feePayer: string
 }
 
 export const useFxStore = defineStore('fx', {
@@ -45,6 +46,7 @@ export const useFxStore = defineStore('fx', {
     platformSettlementCurrency: 'GBP',
     connectedSettlementCurrency: 'EUR',
     rates: hardcodedRates,
+    feePayer: 'connected',
   }),
 
   getters: {
@@ -85,6 +87,9 @@ export const useFxStore = defineStore('fx', {
     setPresentmentCurrency(currency: string) {
       this.presentmentCurrency = currency
     },
+    setFeePayer(payer: string) {
+      this.feePayer = payer
+    },
   },
 })
 
@@ -108,4 +113,9 @@ export const availableCurrencies = [
   { code: 'JPY', name: 'Japanese Yen' },
   { code: 'CAD', name: 'Canadian Dollar' },
   { code: 'AUD', name: 'Australian Dollar' },
+]
+
+export const feePayerOptions = [
+  { id: 'connected', name: 'Connected Account Pays' },
+  { id: 'platform', name: 'Platform Pays' },
 ]

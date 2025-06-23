@@ -48,6 +48,36 @@ const explanationSteps = computed(() => {
     steps.push(
       `After Stripe fees and taxes are deducted, the net amount is paid out to the Connected Account's external bank account in <strong>${connectedSettlementCurrency}</strong>, and the application fee is paid out to the Platform's bank account in <strong>${platformSettlementCurrency}</strong>.`,
     )
+  } else if (chargeType === 'destination') {
+    steps.push(
+      `A customer is charged <strong>100 ${presentmentCurrency}</strong>. With a Destination Charge, this charge is created on the <strong>Platform Account</strong>.`,
+    )
+
+    const platformNeedsFx = presentmentCurrency !== platformSettlementCurrency
+    if (platformNeedsFx) {
+      steps.push(
+        `The charge is converted to the Platform's settlement currency of <strong>${platformSettlementCurrency}</strong>. After FX fees, this amount is added to the Platform's pending balance.`,
+      )
+    } else {
+      steps.push(
+        `Since the Platform also settles in <strong>${presentmentCurrency}</strong>, no currency conversion is needed at this stage.`,
+      )
+    }
+
+    steps.push(
+      `From the Platform's balance, a <strong>transfer</strong> is made to the Connected Account.`,
+    )
+
+    const connectedNeedsFx = platformSettlementCurrency !== connectedSettlementCurrency
+    if (connectedNeedsFx) {
+      steps.push(
+        `The transferred amount, currently in <strong>${platformSettlementCurrency}</strong>, is converted to the Connected Account's settlement currency of <strong>${connectedSettlementCurrency}</strong>.`,
+      )
+    }
+
+    steps.push(
+      `Finally, the <strong>10% application fee</strong> is collected from the Connected Account's balance and the net amounts are paid out to both parties.`,
+    )
   } else {
     steps.push(`Explanation for ${store.chargeType} is not yet implemented.`)
   }

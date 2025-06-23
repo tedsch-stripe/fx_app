@@ -1,5 +1,12 @@
 # fx_app
 
+### TODO
+
+Add Links to Stripe docs
+
+Export to Excel
+charge amount, app fee, countries and currencies, FX rates, (can pull it from public ECB api) and it calculates the rest
+
 This template should help get you started developing with Vue 3 in Vite.
 
 ## Recommended IDE Setup
