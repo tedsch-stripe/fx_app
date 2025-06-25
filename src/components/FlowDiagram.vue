@@ -7,6 +7,21 @@ const store = useFxStore()
 const diagramContainer = ref<HTMLDivElement | null>(null)
 let mermaidInitialized = false
 
+// Country code to flag emoji mapping
+const getCountryFlag = (countryCode: string): string => {
+  const flagMap: Record<string, string> = {
+    US: '🇺🇸',
+    GB: '🇬🇧',
+    IE: '🇮🇪',
+    FR: '🇫🇷',
+    DE: '🇩🇪',
+    JP: '🇯🇵',
+    CA: '🇨🇦',
+    AU: '🇦🇺',
+  }
+  return flagMap[countryCode] || countryCode
+}
+
 // The computed property that generates the Mermaid definition based on the store
 const mermaidDefinition = computed(() => {
   const {
@@ -84,7 +99,7 @@ const mermaidDefinition = computed(() => {
     `
     // --- Connected Account Subgraph ---
     definition += `
-      subgraph "Connected Account (${connectedCountry})"
+      subgraph "Connected Account ${getCountryFlag(connectedCountry)}"
         CH("Charge<br><b>${chargeAmount.toFixed(2)} ${presentmentCurrency}</b>");
     `
     if (connectedNeedsFx) {
@@ -102,7 +117,7 @@ const mermaidDefinition = computed(() => {
     `
     // --- Platform Subgraph ---
     definition += `
-      subgraph "Platform (${platformCountry})"
+      subgraph "Platform ${getCountryFlag(platformCountry)}"
     `
     if (platformNeedsFx) {
       const fxFeePercent = platformFxFee * 100
@@ -190,7 +205,7 @@ const mermaidDefinition = computed(() => {
         PI("Payment Intent<br><b>${chargeAmount.toFixed(2)} ${presentmentCurrency}</b><br><span style='font-size:11px'>app_fee: ${appFee.toFixed(2)} ${presentmentCurrency}</span>");
       end
 
-      subgraph "Platform (${platformCountry})"
+      subgraph "Platform ${getCountryFlag(platformCountry)}"
         CH("Charge<br><b>${chargeAmount.toFixed(2)} ${presentmentCurrency}</b>");
         ${platformNeedsFx ? `FX1("FX<br>${presentmentCurrency} to ${platformSettlementCurrency}<br><span style='font-size:11px'>Rate: ${platformRate.toFixed(4)}<br>Fee: ${(platformFxFeePercent * 100).toFixed(0)}%</span>");` : ''}
         CH_FX("Charge<br><b>${chargeOnPlatformAfterFx.toFixed(2)} ${platformSettlementCurrency}</b>");
@@ -200,7 +215,7 @@ const mermaidDefinition = computed(() => {
         BT_P_STRIPE("Balance<br><b>${platformStripeFeeBal.toFixed(2)} ${platformSettlementCurrency}</b><br><span style='font-size:11px'>stripe_fee</span>");
       end
 
-      subgraph "Connected Account (${connectedCountry})"
+      subgraph "Connected Account ${getCountryFlag(connectedCountry)}"
         ${connectedNeedsFx ? `FX2("FX<br>${platformSettlementCurrency} to ${connectedSettlementCurrency}<br><span style='font-size:11px'>Rate: ${connectedRate.toFixed(4)}<br>Fee: ${(connectedFxFeePercent * 100).toFixed(0)}%</span>");` : ''}
         PY_FX("Transfer<br><b>${paymentOnConnectedAfterFx.toFixed(2)} ${connectedSettlementCurrency}</b>");
         PF("platform_fee<br><b>-${appFeeInConnectedCurrency.toFixed(2)} ${connectedSettlementCurrency}</b><br><span style='font-size:11px'>from ${appFee.toFixed(2)} ${presentmentCurrency}</span>");
@@ -220,6 +235,138 @@ const mermaidDefinition = computed(() => {
 
       class PI pi; class CH,CH_FX,PY,PY_FX ch; class FX1,FX2 fx;
       class PF,FEES fee; class BT_C,BT_P_APP,BT_P_STRIPE bt; class TR tr;
+    `
+  } else if (chargeType === 'destination_obo') {
+    // --- Destination OBO (On-Behalf-Of) Flow ---
+    // --- Calculations ---
+    const chargeAmount = 100.0
+    const appFee = 10.0
+
+    // Platform FX conversion (presentment currency to connected account settlement currency)
+    const conversionRate = getRate(presentmentCurrency, connectedSettlementCurrency)
+    const fxFeePercent =
+      presentmentCurrency !== connectedSettlementCurrency
+        ? presentmentCurrency === 'USD' || connectedSettlementCurrency === 'USD'
+          ? 0.01
+          : 0.02
+        : 0
+    const chargeAfterFx = chargeAmount * conversionRate * (1 - fxFeePercent)
+
+    // Stripe fee (calculated on the charge amount after FX)
+    const stripeFee = chargeAfterFx * 0.029 + 0.3
+
+    // App fee in connected account's settlement currency
+    const appFeeInConnectedCurrency = appFee * conversionRate * (1 - fxFeePercent)
+
+    // Connected account net (after platform fee is taken out)
+    const connectedNet = chargeAfterFx - appFeeInConnectedCurrency
+
+    // --- Build Diagram ---
+    definition += `
+      subgraph Customer
+        PI("Payment Intent<br><b>${chargeAmount.toFixed(2)} ${presentmentCurrency}</b><br><span style='font-size:11px'>app_fee: ${appFee.toFixed(2)} ${presentmentCurrency}</span>");
+      end
+
+      subgraph "Platform ${getCountryFlag(platformCountry)}"
+        CH("Charge<br><b>${chargeAmount.toFixed(2)} ${presentmentCurrency}</b>");
+        ${presentmentCurrency !== connectedSettlementCurrency ? `FX("FX<br>${presentmentCurrency} to ${connectedSettlementCurrency}<br><span style='font-size:11px'>Rate: ${conversionRate.toFixed(4)}<br>Fee: ${(fxFeePercent * 100).toFixed(0)}%</span>");` : ''}
+        CH_FX("Charge<br>fx_amount: <b>${chargeAfterFx.toFixed(2)} ${connectedSettlementCurrency}</b>");
+        TR("Transfer<br><b>${chargeAfterFx.toFixed(2)} ${connectedSettlementCurrency}</b>");
+        STRIPE_FEE("Stripe Fee<br><b>${stripeFee.toFixed(2)} ${connectedSettlementCurrency}</b>");
+        BT_PLATFORM("Balance Transfer<br><b>${appFeeInConnectedCurrency.toFixed(2)} ${connectedSettlementCurrency}</b>");
+        BT_NEG("Balance Transfer<br><b>-${stripeFee.toFixed(2)} ${connectedSettlementCurrency}</b>");
+      end
+
+      subgraph "Connected Account ${getCountryFlag(connectedCountry)}"
+        TR2("Transfer<br><b>${chargeAfterFx.toFixed(2)} ${connectedSettlementCurrency}</b>");
+        PLATFORM_FEE("Platform Fee<br><b>${appFeeInConnectedCurrency.toFixed(2)} ${connectedSettlementCurrency}</b>");
+        BT_CONNECTED("Balance Transfer<br>amount: <b>${chargeAfterFx.toFixed(2)} ${connectedSettlementCurrency}</b><br>net: <b>${connectedNet.toFixed(2)} ${connectedSettlementCurrency}</b>");
+      end
+
+      PI --> CH
+      CH ${presentmentCurrency !== connectedSettlementCurrency ? '--> FX --> CH_FX' : '--> CH_FX'}
+      CH_FX --> TR
+      CH_FX -.-> STRIPE_FEE
+      STRIPE_FEE --> BT_NEG
+      TR --> TR2
+      TR2 --> BT_CONNECTED
+      BT_CONNECTED -.-> PLATFORM_FEE
+      PLATFORM_FEE --> BT_PLATFORM
+
+      class PI pi; class CH,CH_FX,TR,TR2 ch; class FX fx;
+      class STRIPE_FEE,PLATFORM_FEE fee; class BT_CONNECTED,BT_PLATFORM,BT_NEG bt;
+    `
+  } else if (chargeType === 'sct') {
+    // --- Separate Charge and Transfer (SCT) Flow ---
+    // --- Calculations ---
+    const chargeAmount = 100.0
+    const appFee = 10.0
+
+    // Platform FX conversion (presentment currency to platform settlement currency)
+    const platformRate = getRate(presentmentCurrency, platformSettlementCurrency)
+    const platformFxFeePercent =
+      presentmentCurrency !== platformSettlementCurrency
+        ? presentmentCurrency === 'USD' || platformSettlementCurrency === 'USD'
+          ? 0.01
+          : 0.02
+        : 0
+    const chargeAfterPlatformFx = chargeAmount * platformRate * (1 - platformFxFeePercent)
+
+    // Stripe fee (calculated on the platform currency amount)
+    const stripeFee = chargeAfterPlatformFx * 0.029 + 0.3
+
+    // Platform net after stripe fee
+    const platformNetAfterFees = chargeAfterPlatformFx - stripeFee
+
+    // Transfer amount (separate from charge - this is the bulk amount platform chooses to transfer)
+    const transferAmount = platformNetAfterFees - appFee * platformRate * (1 - platformFxFeePercent) // Transfer most of the amount
+
+    // Connected account FX conversion (platform currency to connected settlement currency)
+    const connectedRate = getRate(platformSettlementCurrency, connectedSettlementCurrency)
+    const connectedFxFeePercent =
+      platformSettlementCurrency !== connectedSettlementCurrency
+        ? platformSettlementCurrency === 'USD' || connectedSettlementCurrency === 'USD'
+          ? 0.01
+          : 0.02
+        : 0
+    const transferAfterConnectedFx = transferAmount * connectedRate * (1 - connectedFxFeePercent)
+
+    // Platform remainder (what's left after transfer - equivalent to app fee)
+    const platformRemainder = appFee * platformRate * (1 - platformFxFeePercent)
+
+    // --- Build Diagram ---
+    definition += `
+      subgraph Customer
+        PI("Payment Intent<br><b>${chargeAmount.toFixed(2)} ${presentmentCurrency}</b><br><span style='font-size:11px'>app_fee: ${appFee.toFixed(2)} ${presentmentCurrency}</span>");
+      end
+
+      subgraph "Platform ${getCountryFlag(platformCountry)}"
+        CH("Charge<br><b>${chargeAmount.toFixed(2)} ${presentmentCurrency}</b>");
+        ${presentmentCurrency !== platformSettlementCurrency ? `FX1("FX<br>${presentmentCurrency} to ${platformSettlementCurrency}<br><span style='font-size:11px'>Rate: ${platformRate.toFixed(4)}<br>Fee: ${(platformFxFeePercent * 100).toFixed(0)}%</span>");` : ''}
+        CH_FX("Charge<br>fx_amount: <b>${chargeAfterPlatformFx.toFixed(2)} ${platformSettlementCurrency}</b>");
+        STRIPE_FEE("Stripe Fee<br><b>${stripeFee.toFixed(2)} ${platformSettlementCurrency}</b>");
+        BT_PLATFORM("Balance Transfer<br>amount: <b>${chargeAfterPlatformFx.toFixed(2)} ${platformSettlementCurrency}</b><br>net: <b>${platformNetAfterFees.toFixed(2)} ${platformSettlementCurrency}</b>");
+        TR("Transfer<br><b>${transferAmount.toFixed(2)} ${platformSettlementCurrency}</b>");
+        BT_REMAINDER("Balance Transfer<br><b>${platformRemainder.toFixed(2)} ${platformSettlementCurrency}</b><br><span style='font-size:11px'>left over after transfer and fees</span>");
+      end
+
+      subgraph "Connected Account ${getCountryFlag(connectedCountry)}"
+        ${platformSettlementCurrency !== connectedSettlementCurrency ? `FX2("FX<br>${platformSettlementCurrency} to ${connectedSettlementCurrency}<br><span style='font-size:11px'>Rate: ${connectedRate.toFixed(4)}<br>Fee: ${(connectedFxFeePercent * 100).toFixed(0)}%</span>");` : ''}
+        PY_FX("Transfer<br>fx_amount: <b>${transferAfterConnectedFx.toFixed(2)} ${connectedSettlementCurrency}</b>");
+        BT_CONNECTED("Balance Transfer<br><b>${transferAfterConnectedFx.toFixed(2)} ${connectedSettlementCurrency}</b>");
+      end
+
+      PI --> CH
+      CH ${presentmentCurrency !== platformSettlementCurrency ? '--> FX1 --> CH_FX' : '--> CH_FX'}
+      CH_FX --> BT_PLATFORM
+      CH_FX -.-> STRIPE_FEE
+      BT_PLATFORM -.-> TR
+      TR ${platformSettlementCurrency !== connectedSettlementCurrency ? '--> FX2 --> PY_FX' : '--> PY_FX'}
+      PY_FX --> BT_CONNECTED
+      BT_PLATFORM -.-> BT_REMAINDER
+
+      class PI pi; class CH,CH_FX,TR,PY_FX ch; class FX1,FX2 fx;
+      class STRIPE_FEE fee; class BT_PLATFORM,BT_CONNECTED,BT_REMAINDER bt;
     `
   } else {
     definition += `subgraph Placeholder; Z("Logic for ${store.chargeType} not implemented"); end`

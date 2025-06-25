@@ -13,6 +13,7 @@ const hardcodedRates = {
 export const chargeTypes = [
   { id: 'direct', name: 'Direct Charge' },
   { id: 'destination', name: 'Destination Charge' },
+  { id: 'destination_obo', name: 'Destination OBO' },
   { id: 'sct', name: 'Separate Charge and Transfer' },
 ]
 
