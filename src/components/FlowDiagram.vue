@@ -261,6 +261,9 @@ const mermaidDefinition = computed(() => {
     // Connected account net (after platform fee is taken out)
     const connectedNet = chargeAfterFx - appFeeInConnectedCurrency
 
+    // Platform net (app fee minus Stripe fees)
+    const platformNet = appFeeInConnectedCurrency - stripeFee
+
     // --- Build Diagram ---
     definition += `
       subgraph Customer
@@ -273,7 +276,7 @@ const mermaidDefinition = computed(() => {
         CH_FX("Charge<br>fx_amount: <b>${chargeAfterFx.toFixed(2)} ${connectedSettlementCurrency}</b>");
         TR("Transfer<br><b>${chargeAfterFx.toFixed(2)} ${connectedSettlementCurrency}</b>");
         STRIPE_FEE("Stripe Fee<br><b>${stripeFee.toFixed(2)} ${connectedSettlementCurrency}</b>");
-        BT_PLATFORM("Balance Transfer<br><b>${appFeeInConnectedCurrency.toFixed(2)} ${connectedSettlementCurrency}</b>");
+        BT_PLATFORM("Balance Transfer<br>amount: <b>${appFeeInConnectedCurrency.toFixed(2)} ${connectedSettlementCurrency}</b><br>net: <b>${platformNet.toFixed(2)} ${connectedSettlementCurrency}</b>");
         BT_NEG("Balance Transfer<br><b>-${stripeFee.toFixed(2)} ${connectedSettlementCurrency}</b>");
       end
 

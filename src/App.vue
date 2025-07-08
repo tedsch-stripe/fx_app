@@ -35,17 +35,8 @@ import FlowExplanation from './components/FlowExplanation.vue'
               <p class="text-sm text-gray-500">Stripe Connect Foreign Exchange Visualization</p>
             </div>
           </div>
-          <div class="flex items-center space-x-4">
-            <button
-              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-            >
-              Export Data
-            </button>
-            <button
-              class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors"
-            >
-              Settings
-            </button>
+          <div class="text-right">
+            <p class="text-sm text-gray-500">Last updated: July 1, 2025</p>
           </div>
         </div>
       </div>
