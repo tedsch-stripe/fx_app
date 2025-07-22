@@ -303,7 +303,6 @@ const mermaidDefinition = computed(() => {
     // --- Separate Charge and Transfer (SCT) Flow ---
     // --- Calculations ---
     const chargeAmount = 100.0
-    const appFee = 10.0
 
     // Platform FX conversion (presentment currency to platform settlement currency)
     const platformRate = getRate(presentmentCurrency, platformSettlementCurrency)
@@ -321,8 +320,12 @@ const mermaidDefinition = computed(() => {
     // Platform net after stripe fee
     const platformNetAfterFees = chargeAfterPlatformFx - stripeFee
 
-    // Transfer amount (separate from charge - this is the bulk amount platform chooses to transfer)
-    const transferAmount = platformNetAfterFees - appFee * platformRate * (1 - platformFxFeePercent) // Transfer most of the amount
+    // Transfer amount (separate from charge - this is the amount platform chooses to transfer)
+    // In SCT, there's no explicit app fee - the platform implicitly keeps a portion by transferring less
+    // For consistency with other flows (10 app fee), transfer equivalent of 90 in presentment currency
+    const transferAmountInPresentmentCurrency = 90.0 // Equivalent to keeping 10 as implicit fee
+    const transferAmount =
+      transferAmountInPresentmentCurrency * platformRate * (1 - platformFxFeePercent)
 
     // Connected account FX conversion (platform currency to connected settlement currency)
     const connectedRate = getRate(platformSettlementCurrency, connectedSettlementCurrency)
@@ -334,13 +337,13 @@ const mermaidDefinition = computed(() => {
         : 0
     const transferAfterConnectedFx = transferAmount * connectedRate * (1 - connectedFxFeePercent)
 
-    // Platform remainder (what's left after transfer - equivalent to app fee)
-    const platformRemainder = appFee * platformRate * (1 - platformFxFeePercent)
+    // Platform remainder (what's left after transfer - this is the implicit platform fee)
+    const platformRemainder = platformNetAfterFees - transferAmount
 
     // --- Build Diagram ---
     definition += `
       subgraph Customer
-        PI("Payment Intent<br><b>${chargeAmount.toFixed(2)} ${presentmentCurrency}</b><br><span style='font-size:11px'>app_fee: ${appFee.toFixed(2)} ${presentmentCurrency}</span>");
+        PI("Payment Intent<br><b>${chargeAmount.toFixed(2)} ${presentmentCurrency}</b><br><span style='font-size:11px'>transfer: ${transferAmountInPresentmentCurrency.toFixed(2)} ${presentmentCurrency}</span>");
       end
 
       subgraph "Platform ${getCountryFlag(platformCountry)}"
@@ -350,7 +353,7 @@ const mermaidDefinition = computed(() => {
         STRIPE_FEE("Stripe Fee<br><b>${stripeFee.toFixed(2)} ${platformSettlementCurrency}</b>");
         BT_PLATFORM("Balance Transfer<br>amount: <b>${chargeAfterPlatformFx.toFixed(2)} ${platformSettlementCurrency}</b><br>net: <b>${platformNetAfterFees.toFixed(2)} ${platformSettlementCurrency}</b>");
         TR("Transfer<br><b>${transferAmount.toFixed(2)} ${platformSettlementCurrency}</b>");
-        BT_REMAINDER("Balance Transfer<br><b>${platformRemainder.toFixed(2)} ${platformSettlementCurrency}</b><br><span style='font-size:11px'>left over after transfer and fees</span>");
+        BT_REMAINDER("Balance Transfer<br><b>${platformRemainder.toFixed(2)} ${platformSettlementCurrency}</b><br><span style='font-size:11px'>platform keeps (implicit fee)</span>");
       end
 
       subgraph "Connected Account ${getCountryFlag(connectedCountry)}"

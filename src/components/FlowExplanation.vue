@@ -138,7 +138,7 @@ const explanationSteps = computed(() => {
     )
 
     steps.push(
-      `The Platform then makes a <strong>separate transfer</strong> to the Connected Account. This transfer amount is independent of the original charge and is determined by the Platform.`,
+      `The Platform then makes a <strong>separate transfer</strong> to the Connected Account. This transfer amount is independent of the original charge and is determined by the Platform. <strong>There is no explicit application fee</strong> in SCT.`,
     )
 
     const connectedNeedsFx = platformSettlementCurrency !== connectedSettlementCurrency
@@ -149,7 +149,7 @@ const explanationSteps = computed(() => {
     }
 
     steps.push(
-      `The Platform retains the <strong>remaining balance</strong> after the transfer and processing fees. This "left over" amount represents the Platform's earnings from the transaction.`,
+      `The Platform retains the <strong>remaining balance</strong> after the transfer and processing fees. By choosing to transfer less than the full net amount, the Platform implicitly keeps a portion as their earnings - this is how the Platform monetizes SCT transactions.`,
     )
   } else {
     steps.push(`Explanation for ${store.chargeType} is not yet implemented.`)
