@@ -6,13 +6,98 @@ import {
   chargeTypes,
   feePayerOptions,
 } from '@/store/fxStore'
+import { ref } from 'vue'
 
 const store = useFxStore()
+const showCopiedMessage = ref(false)
+
+const shareUrl = () => {
+  const params = store.encodeToUrl()
+  const shareableUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`
+
+  // Update the browser URL with pushState to create a new history entry
+  window.history.pushState({}, '', shareableUrl)
+
+  navigator.clipboard
+    .writeText(shareableUrl)
+    .then(() => {
+      showCopiedMessage.value = true
+      setTimeout(() => {
+        showCopiedMessage.value = false
+      }, 2000)
+    })
+    .catch(() => {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = shareableUrl
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+
+      showCopiedMessage.value = true
+      setTimeout(() => {
+        showCopiedMessage.value = false
+      }, 2000)
+    })
+}
 </script>
 
 <template>
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-    <h2 class="text-lg font-semibold text-gray-900 mb-6">FX Scenario Configuration</h2>
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-lg font-semibold text-gray-900">FX Scenario Configuration</h2>
+      <div class="relative">
+        <button
+          @click="shareUrl"
+          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+        >
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
+            ></path>
+          </svg>
+          Share URL
+        </button>
+
+        <!-- Success message -->
+        <div
+          v-if="showCopiedMessage"
+          class="absolute top-full right-0 mt-2 px-3 py-2 bg-green-100 border border-green-200 text-green-800 text-sm rounded-lg shadow-lg z-10"
+        >
+          URL copied to clipboard!
+        </div>
+      </div>
+    </div>
+
+    <!-- URL Information -->
+    <div class="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+      <div class="flex">
+        <svg
+          class="w-5 h-5 text-blue-600 mr-2 mt-0.5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          ></path>
+        </svg>
+        <div>
+          <p class="text-sm text-blue-800 font-medium">Share Configuration</p>
+          <p class="text-xs text-blue-700 mt-1">
+            Click "Share URL" to update the browser URL and copy it to your clipboard for sharing
+            this exact configuration.
+          </p>
+        </div>
+      </div>
+    </div>
 
     <!-- Charge Configuration Section -->
     <div class="mb-6">

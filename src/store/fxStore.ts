@@ -91,6 +91,63 @@ export const useFxStore = defineStore('fx', {
     setFeePayer(payer: string) {
       this.feePayer = payer
     },
+
+    // URL State Management
+    encodeToUrl(): URLSearchParams {
+      const params = new URLSearchParams()
+      params.set('chargeType', this.chargeType)
+      params.set('platformCountry', this.platformCountry)
+      params.set('connectedCountry', this.connectedCountry)
+      params.set('presentmentCurrency', this.presentmentCurrency)
+      params.set('platformSettlementCurrency', this.platformSettlementCurrency)
+      params.set('connectedSettlementCurrency', this.connectedSettlementCurrency)
+      params.set('feePayer', this.feePayer)
+      return params
+    },
+
+    loadFromUrl(params: URLSearchParams) {
+      // Only update if the parameter exists and is valid
+      const chargeType = params.get('chargeType')
+      if (chargeType && chargeTypes.some((ct) => ct.id === chargeType)) {
+        this.chargeType = chargeType
+      }
+
+      const platformCountry = params.get('platformCountry')
+      if (platformCountry && availableCountries.some((c) => c.code === platformCountry)) {
+        this.setPlatformCountry(platformCountry)
+      }
+
+      const connectedCountry = params.get('connectedCountry')
+      if (connectedCountry && availableCountries.some((c) => c.code === connectedCountry)) {
+        this.setConnectedCountry(connectedCountry)
+      }
+
+      const presentmentCurrency = params.get('presentmentCurrency')
+      if (presentmentCurrency && availableCurrencies.some((c) => c.code === presentmentCurrency)) {
+        this.presentmentCurrency = presentmentCurrency
+      }
+
+      const platformSettlementCurrency = params.get('platformSettlementCurrency')
+      if (
+        platformSettlementCurrency &&
+        availableCurrencies.some((c) => c.code === platformSettlementCurrency)
+      ) {
+        this.platformSettlementCurrency = platformSettlementCurrency
+      }
+
+      const connectedSettlementCurrency = params.get('connectedSettlementCurrency')
+      if (
+        connectedSettlementCurrency &&
+        availableCurrencies.some((c) => c.code === connectedSettlementCurrency)
+      ) {
+        this.connectedSettlementCurrency = connectedSettlementCurrency
+      }
+
+      const feePayer = params.get('feePayer')
+      if (feePayer && feePayerOptions.some((fp) => fp.id === feePayer)) {
+        this.feePayer = feePayer
+      }
+    },
   },
 })
 

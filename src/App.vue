@@ -2,6 +2,10 @@
 import FxControls from './components/FxControls.vue'
 import FlowDiagram from './components/FlowDiagram.vue'
 import FlowExplanation from './components/FlowExplanation.vue'
+import { useUrlState } from './composables/useUrlState'
+
+// Initialize URL state management
+useUrlState()
 </script>
 
 <template>
