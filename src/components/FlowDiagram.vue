@@ -52,8 +52,8 @@ const mermaidDefinition = computed(() => {
     const platformNeedsFx = connectedSettlementCurrency !== platformSettlementCurrency
 
     // --- Calculations ---
-    const chargeAmount = 100.0
-    const appFee = 10.0
+    const chargeAmount = presentmentCurrency === 'JPY' ? 1000.0 : 100.0
+    const appFee = presentmentCurrency === 'JPY' ? 100.0 : 10.0
     const stripeFee = chargeAmount * 0.029 + 0.3 // Illustrative Stripe fee
 
     const connectedRate = getRate(presentmentCurrency, connectedSettlementCurrency)
@@ -193,8 +193,8 @@ const mermaidDefinition = computed(() => {
     const connectedNeedsFx = platformSettlementCurrency !== connectedSettlementCurrency
 
     // --- Calculations ---
-    const chargeAmount = 100.0
-    const appFee = 10.0
+    const chargeAmount = presentmentCurrency === 'JPY' ? 1000.0 : 100.0
+    const appFee = presentmentCurrency === 'JPY' ? 100.0 : 10.0
 
     const platformRate = getRate(presentmentCurrency, platformSettlementCurrency)
     const platformFxFeePercent = platformNeedsFx
@@ -266,8 +266,8 @@ const mermaidDefinition = computed(() => {
   } else if (chargeType === 'destination_obo') {
     // --- Destination OBO (On-Behalf-Of) Flow ---
     // --- Calculations ---
-    const chargeAmount = 100.0
-    const appFee = 10.0
+    const chargeAmount = presentmentCurrency === 'JPY' ? 1000.0 : 100.0
+    const appFee = presentmentCurrency === 'JPY' ? 100.0 : 10.0
 
     // Platform FX conversion (presentment currency to connected account settlement currency)
     const conversionRate = getRate(presentmentCurrency, connectedSettlementCurrency)
@@ -329,7 +329,7 @@ const mermaidDefinition = computed(() => {
   } else if (chargeType === 'sct') {
     // --- Separate Charge and Transfer (SCT) Flow ---
     // --- Calculations ---
-    const chargeAmount = 100.0
+    const chargeAmount = presentmentCurrency === 'JPY' ? 1000.0 : 100.0
 
     // Platform FX conversion (presentment currency to platform settlement currency)
     const platformRate = getRate(presentmentCurrency, platformSettlementCurrency)
@@ -349,8 +349,8 @@ const mermaidDefinition = computed(() => {
 
     // Transfer amount (separate from charge - this is the amount platform chooses to transfer)
     // In SCT, there's no explicit app fee - the platform implicitly keeps a portion by transferring less
-    // For consistency with other flows (10 app fee), transfer equivalent of 90 in presentment currency
-    const transferAmountInPresentmentCurrency = 90.0 // Equivalent to keeping 10 as implicit fee
+    // For consistency with other flows (10% implicit fee), transfer equivalent of 90% in presentment currency
+    const transferAmountInPresentmentCurrency = presentmentCurrency === 'JPY' ? 900.0 : 90.0 // Equivalent to keeping 10% as implicit fee
     const transferAmount =
       transferAmountInPresentmentCurrency * platformRate * (1 - platformFxFeePercent)
 
