@@ -18,6 +18,7 @@ const getCountryFlag = (countryCode: string): string => {
     JP: '🇯🇵',
     CA: '🇨🇦',
     AU: '🇦🇺',
+    SG: '🇸🇬',
   }
   return flagMap[countryCode] || countryCode
 }
@@ -62,33 +63,52 @@ const mermaidDefinition = computed(() => {
         : 0.02
       : 0
     const chargeFxAmount = chargeAmount * connectedRate * (1 - connectedFxFee)
-    const appFeeInConnectedCurrency = appFee * connectedRate * (1 - connectedFxFee)
 
-    // Calculate platform rates and fees (needed for both scenarios)
+    // Calculate platform FX details (needed for both app fee calculation and diagram)
     const platformRate = getRate(connectedSettlementCurrency, platformSettlementCurrency)
     const platformFxFee = platformNeedsFx
       ? connectedSettlementCurrency === 'USD' || platformSettlementCurrency === 'USD'
         ? 0.01
         : 0.02
       : 0
-    const platformFeeFxAmount = appFeeInConnectedCurrency * platformRate * (1 - platformFxFee)
+
+    // App fee handling depends on whether platform needs FX
+    let appFeeInConnectedCurrency, platformNet
+
+    if (presentmentCurrency === platformSettlementCurrency) {
+      // Platform receives full app fee (no FX fee charged to platform)
+      // Connected account bears the FX cost for the app fee portion
+      appFeeInConnectedCurrency = appFee * connectedRate * (1 - connectedFxFee)
+      platformNet = appFee // Platform gets full app fee in presentment/platform currency
+    } else {
+      // Both connected and platform need FX conversions
+      appFeeInConnectedCurrency = appFee * connectedRate * (1 - connectedFxFee)
+      platformNet = appFeeInConnectedCurrency * platformRate * (1 - platformFxFee)
+    }
 
     // Calculate balances based on who pays the Stripe fee
-    let connectedNet, platformNet, stripeFeeInConnectedCurrency, stripeFeeInPlatformCurrency
+    let connectedNet, stripeFeeInConnectedCurrency, stripeFeeInPlatformCurrency
 
     if (feePayer === 'connected') {
-      // Connected Account pays Stripe fee (original logic)
+      // Connected Account pays Stripe fee
       stripeFeeInConnectedCurrency = stripeFee * connectedRate * (1 - connectedFxFee)
       connectedNet = chargeFxAmount - appFeeInConnectedCurrency - stripeFeeInConnectedCurrency
-      platformNet = platformFeeFxAmount
       stripeFeeInPlatformCurrency = 0 // Not used in this scenario
     } else {
       // Platform pays Stripe fee
       stripeFeeInConnectedCurrency = 0 // Not used in this scenario
       connectedNet = chargeFxAmount - appFeeInConnectedCurrency
-      stripeFeeInPlatformCurrency =
-        stripeFee * connectedRate * platformRate * (1 - connectedFxFee) * (1 - platformFxFee)
-      platformNet = platformFeeFxAmount - stripeFeeInPlatformCurrency
+
+      if (presentmentCurrency === platformSettlementCurrency) {
+        // Platform pays stripe fee in same currency as platform settlement
+        stripeFeeInPlatformCurrency = stripeFee
+        platformNet = appFee - stripeFee
+      } else {
+        // Platform pays converted stripe fee
+        stripeFeeInPlatformCurrency =
+          stripeFee * connectedRate * platformRate * (1 - connectedFxFee) * (1 - platformFxFee)
+        platformNet = platformNet - stripeFeeInPlatformCurrency
+      }
     }
 
     // --- Build Diagram ---
@@ -123,7 +143,12 @@ const mermaidDefinition = computed(() => {
       const fxFeePercent = platformFxFee * 100
       definition += `
         FX2("FX<br>${connectedSettlementCurrency} to ${platformSettlementCurrency}<br><span style='font-size:11px'>Rate: ${platformRate.toFixed(4)}<br>Fee: ${fxFeePercent}%</span>");
-        PF_FX("platform_fee<br><b>${platformFeeFxAmount.toFixed(2)} ${platformSettlementCurrency}</b>");
+        PF_FX("platform_fee<br><b>${platformNet.toFixed(2)} ${platformSettlementCurrency}</b>");
+      `
+    } else {
+      // No FX needed for platform, show platform fee directly
+      definition += `
+        PF_DIRECT("platform_fee<br><b>${platformNet.toFixed(2)} ${platformSettlementCurrency}</b>");
       `
     }
     definition += `
@@ -133,7 +158,7 @@ const mermaidDefinition = computed(() => {
     `
     // --- Connections ---
     const chargeSettledNode = connectedNeedsFx ? 'CH_FX' : 'CH'
-    const platformFeeSourceNode = platformNeedsFx ? 'PF_FX' : 'PF'
+    const platformFeeSourceNode = platformNeedsFx ? 'PF_FX' : 'PF_DIRECT'
 
     definition += `
       PI --> CH
@@ -142,7 +167,7 @@ const mermaidDefinition = computed(() => {
       ${chargeSettledNode} -.-> PF
       ${feePayer === 'connected' ? `${chargeSettledNode} -.-> FEES` : ''}
 
-      ${platformNeedsFx ? 'PF --> FX2 --> PF_FX' : ''}
+      ${platformNeedsFx ? 'PF --> FX2 --> PF_FX' : 'PF --> PF_DIRECT'}
       ${platformFeeSourceNode} --> BT_P
       ${feePayer === 'platform' ? `${platformFeeSourceNode} -.-> FEES_P` : ''}
     `
@@ -159,6 +184,8 @@ const mermaidDefinition = computed(() => {
     }
     if (platformNeedsFx) {
       definition += 'class PF_FX bt; class FX2 fx;'
+    } else {
+      definition += 'class PF_DIRECT bt;'
     }
   } else if (chargeType === 'destination') {
     // --- Determine if FX is needed ---

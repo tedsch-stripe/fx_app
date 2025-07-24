@@ -7,6 +7,7 @@ const hardcodedRates = {
   EUR: 0.86896,
   GBP: 0.74314,
   JPY: 144.83,
+  SGD: 1.3456,
   USD: 1.0, // Base currency
 }
 
@@ -25,6 +26,7 @@ const currencyMap: Record<string, string> = {
   JP: 'JPY',
   CA: 'CAD',
   AU: 'AUD',
+  SG: 'SGD',
 }
 
 type FxState = {
@@ -161,6 +163,7 @@ export const availableCountries = [
   { code: 'JP', name: 'Japan' },
   { code: 'CA', name: 'Canada' },
   { code: 'AU', name: 'Australia' },
+  { code: 'SG', name: 'Singapore' },
 ]
 
 export const availableCurrencies = [
@@ -171,6 +174,7 @@ export const availableCurrencies = [
   { code: 'JPY', name: 'Japanese Yen' },
   { code: 'CAD', name: 'Canadian Dollar' },
   { code: 'AUD', name: 'Australian Dollar' },
+  { code: 'SGD', name: 'Singapore Dollar' },
 ]
 
 export const feePayerOptions = [
